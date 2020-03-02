@@ -585,16 +585,22 @@ class Route(object):
         func = self.callback
         func = getattr(func, '__func__' if py3k else 'im_func', func)
         closure_attr = '__closure__' if py3k else 'func_closure'
+        callback_chain = [func]
         while hasattr(func, closure_attr) and getattr(func, closure_attr):
             attributes = getattr(func, closure_attr)
             func = attributes[0].cell_contents
+            callback_chain.append(func)
 
             # in case of decorators with multiple arguments
             if not isinstance(func, FunctionType):
                 # pick first FunctionType instance from multiple arguments
                 func = filter(lambda x: isinstance(x, FunctionType),
                               map(lambda x: x.cell_contents, attributes))
-                func = list(func)[0]  # py3 support
+                func_list = list(func)
+                if len(func_list) == 0:
+                    raise ValueError("Invalid callback chain for {}: {}".format(self.callback, callback_chain))
+                func = func_list[0]  # py3 support
+                callback_chain.append(func)
         return func
 
     def get_callback_args(self):
